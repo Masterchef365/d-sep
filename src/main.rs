@@ -105,15 +105,23 @@ pub fn d_separated(
     end_node: Node,
     evidence: &[Node],
 ) -> Result<bool> {
-    let mut visited: HashSet<Node> = HashSet::new();
+    // Nodes we have visited, and the directions we have visited them from. 
+    let mut visited: HashSet<(Option<bool>, Node)> = HashSet::new();
+
+    // LIFO for the DFS behaviour, consisting of the node and which direction we are visiting from
     let mut lifo: Vec<(Option<bool>, Node)> = vec![(None, start_node)];
+
+    // Evidence as a hashset
     let evidence_set: HashSet<Node> = evidence.iter().copied().collect();
 
     while let Some((last_was_toward, node)) = lifo.pop() {
-        if visited.contains(&node) {
+        // Don't revisit from the same direction, it's already been tried!
+        if visited.contains(&(last_was_toward, node)) {
             continue;
         }
-        visited.insert(node);
+        visited.insert((last_was_toward, node));
+
+        //println!("Visit {}", node);
 
         let adjacent = graph.get(&node).context("Node not in graph")?;
         for edge in adjacent {
@@ -122,6 +130,8 @@ pub fn d_separated(
                 None => false,
                 Some(last_was_toward) => is_blocked(last_was_toward, in_evidence, edge.toward),
             };
+
+            //println!("{} -> {}: blocked: {}, last: {:?}, cur: {}", node, edge.end, blocked, last_was_toward, edge.toward);
 
             if !blocked {
                 if edge.end == end_node {
@@ -165,6 +175,8 @@ mod tests {
         assert!(!both_ways(&graph, 'C', 'G', &[]).unwrap());
         assert!(!both_ways(&graph, 'C', 'G', &['F']).unwrap());
         assert!(both_ways(&graph, 'C', 'G', &['F', 'A']).unwrap());
+        assert!(!both_ways(&graph, 'B', 'D', &['F']).unwrap());
+        assert!(!both_ways(&graph, 'B', 'D', &['F', 'G']).unwrap());
     }
 
     /// Test d-separation with the start and end nodes reversed to ensure the result is the same
