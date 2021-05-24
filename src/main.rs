@@ -121,12 +121,11 @@ pub fn d_separated(
             return Ok(false);
         }
 
-        let descendants_in_ev = graph.get(&node).unwrap().iter().any(|n| evidence.contains(&n.end));
+        let in_evidence = evidence_set.contains(&node);
+        let descendants_in_ev = graph.get(&node).unwrap().iter().any(|n| n.toward && evidence.contains(&n.end));
 
         let adjacent = graph.get(&node).context("Node not in graph")?;
         for edge in adjacent {
-            let in_evidence = evidence_set.contains(&node);
-
             let blocked = match last_was_toward {
                 None => false,
                 Some(last_was_toward) => is_blocked(last_was_toward, in_evidence, edge.toward, descendants_in_ev),
