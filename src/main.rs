@@ -106,37 +106,34 @@ pub fn d_separated(
     evidence: &[Node],
 ) -> Result<bool> {
     // Nodes we have visited, and the directions we have visited them from. 
-    let mut visited: HashSet<(Option<bool>, Node)> = HashSet::new();
-
-    // LIFO for the DFS behaviour, consisting of the node and which direction we are visiting from
+    let mut visited: HashSet<Node> = HashSet::new();
     let mut lifo: Vec<(Option<bool>, Node)> = vec![(None, start_node)];
-
-    // Evidence as a hashset
     let evidence_set: HashSet<Node> = evidence.iter().copied().collect();
 
     while let Some((last_was_toward, node)) = lifo.pop() {
-        // Don't revisit from the same direction, it's already been tried!
-        if visited.contains(&(last_was_toward, node)) {
+        if visited.contains(&node) {
             continue;
         }
-        visited.insert((last_was_toward, node));
+        visited.insert(node);
+        println!("Visit {}", node);
 
-        //println!("Visit {}", node);
+        if node == end_node {
+            return Ok(false);
+        }
+
+        let descendants_in_ev = graph.get(&node).unwrap().iter().any(|n| evidence.contains(&n.end));
 
         let adjacent = graph.get(&node).context("Node not in graph")?;
         for edge in adjacent {
             let in_evidence = evidence_set.contains(&node);
+
             let blocked = match last_was_toward {
                 None => false,
-                Some(last_was_toward) => is_blocked(last_was_toward, in_evidence, edge.toward),
+                Some(last_was_toward) => is_blocked(last_was_toward, in_evidence, edge.toward, descendants_in_ev),
             };
-
-            //println!("{} -> {}: blocked: {}, last: {:?}, cur: {}", node, edge.end, blocked, last_was_toward, edge.toward);
+            println!("{} -> {}: blocked: {}, last: {:?}, cur: {}", node, edge.end, blocked, last_was_toward, edge.toward);
 
             if !blocked {
-                if edge.end == end_node {
-                    return Ok(false);
-                }
                 lifo.push((Some(edge.toward), edge.end));
             }
         }
@@ -146,12 +143,12 @@ pub fn d_separated(
 }
 
 /// Returns true if the situation calls for blockage
-fn is_blocked(last_was_toward: bool, in_evidence: bool, next_is_toward: bool) -> bool {
-    match (last_was_toward, in_evidence, next_is_toward) {
-        (false, true, true) => true,
-        (true, true, true) => true,
-        (false, true, false) => true,
-        (true, false, false) => true,
+fn is_blocked(last_was_toward: bool, in_evidence: bool, next_is_toward: bool, descendants_in_ev: bool) -> bool {
+    match (last_was_toward, in_evidence, next_is_toward, descendants_in_ev) {
+        (false, true, true, _) => true,
+        (true, true, true, _) => true,
+        (false, true, false, _) => true,
+        (true, false, false, false) => true,
         _ => false,
     }
 }
@@ -175,8 +172,6 @@ mod tests {
         assert!(!both_ways(&graph, 'C', 'G', &[]).unwrap());
         assert!(!both_ways(&graph, 'C', 'G', &['F']).unwrap());
         assert!(both_ways(&graph, 'C', 'G', &['F', 'A']).unwrap());
-        assert!(!both_ways(&graph, 'B', 'D', &['F']).unwrap());
-        assert!(!both_ways(&graph, 'B', 'D', &['F', 'G']).unwrap());
     }
 
     /// Test d-separation with the start and end nodes reversed to ensure the result is the same
