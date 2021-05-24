@@ -106,15 +106,15 @@ pub fn d_separated(
     evidence: &[Node],
 ) -> Result<bool> {
     // Nodes we have visited, and the directions we have visited them from. 
-    let mut visited: HashSet<Node> = HashSet::new();
+    let mut visited: HashSet<(Option<bool>, Node)> = HashSet::new();
     let mut lifo: Vec<(Option<bool>, Node)> = vec![(None, start_node)];
     let evidence_set: HashSet<Node> = evidence.iter().copied().collect();
 
     while let Some((last_was_toward, node)) = lifo.pop() {
-        if visited.contains(&node) {
+        if visited.contains(&(last_was_toward, node)) {
             continue;
         }
-        visited.insert(node);
+        visited.insert((last_was_toward, node));
         println!("Visit {}", node);
 
         if node == end_node {
