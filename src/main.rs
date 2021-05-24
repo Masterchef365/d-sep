@@ -1,7 +1,20 @@
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 
+/// Nodes are characters
 type Node = char;
+
+/// A single edge from a graph
+#[derive(Debug)]
+pub struct Edge {
+    /// True if this edge points toward `end`
+    pub toward: bool,
+    /// End of the edge
+    pub end: Node,
+}
+
+/// Map from Tail to End(s), adjacency list
+pub type Graph = HashMap<Node, Vec<Edge>>;
 
 fn main() -> Result<()> {
     // Parse args
@@ -43,6 +56,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
+/// Read a graph from the specified string, in the form 'A -> B', line by line
 pub fn read_graph(s: &str) -> Result<Graph> {
     let mut graph: Graph = HashMap::new();
 
@@ -83,18 +97,8 @@ pub fn read_graph(s: &str) -> Result<Graph> {
     Ok(graph)
 }
 
-/// Map from Tail to End(s)
-pub type Graph = HashMap<Node, Vec<Edge>>;
-
-/// A single edge from a graph
-#[derive(Debug)]
-pub struct Edge {
-    /// True if this edge points toward `end`
-    pub toward: bool,
-    /// End of the edge
-    pub end: Node,
-}
-
+/// Return Ok(true) if the paths are d-separated, Ok(false) otherwise. Can error if the start/end
+/// nodes not in the graph
 pub fn d_separated(
     graph: &Graph,
     start_node: Node,
@@ -131,6 +135,7 @@ pub fn d_separated(
     Ok(true)
 }
 
+/// Returns true if the situation calls for blockage
 fn is_blocked(last_was_toward: bool, in_evidence: bool, next_is_toward: bool) -> bool {
     match (last_was_toward, in_evidence, next_is_toward) {
         (false, true, true) => true,
@@ -162,6 +167,8 @@ mod tests {
         assert!(both_ways(&graph, 'C', 'G', &['F', 'A']).unwrap());
     }
 
+    /// Test d-separation with the start and end nodes reversed to ensure the result is the same
+    /// both ways. 
     fn both_ways(
         graph: &Graph,
         a: Node,
@@ -174,6 +181,7 @@ mod tests {
         Ok(ab)
     }
 
+    /// Get the test graph
     fn get_graph() -> Graph {
         let string = "
             A -> B
