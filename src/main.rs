@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 type Node = char;
@@ -7,8 +7,23 @@ type Node = char;
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);
     let graph_path = args.next().context("Requires graph path")?;
-    let graph = read_graph(graph_path)?;
-    dbg!(&graph);
+    let graph: Graph = read_graph(graph_path)?;
+
+    let start_node: Node = args.next().context("Requires first query")?.chars().next().unwrap();
+    let end_node: Node = args.next().context("Requires second query")?.chars().next().unwrap();
+    let evidence: Vec<Node> = args.map(|s| s.chars().next().unwrap()).collect();
+
+    let d_separated = d_separated(&graph, start_node, end_node, &evidence)?;
+
+    print!("{} and {} are ", start_node, end_node);
+    if d_separated {
+        println!("separated");
+    } else {
+        println!("not separated");
+    }
+    if !evidence.is_empty() {
+        println!("Given evidence {:?}", evidence);
+    }
 
     Ok(())
 }
@@ -61,4 +76,45 @@ pub struct Edge {
     pub toward: bool,
     /// End of the edge
     pub end: Node,
+}
+
+pub fn d_separated(graph: &Graph, start_node: Node, end_node: Node, evidence: &[Node]) -> Result<bool> {
+    let mut visited: HashSet<Node> = HashSet::new();
+    let mut lifo: Vec<(Option<bool>, Node)> = vec![(None, start_node)];
+    let evidence_set: HashSet<Node> = evidence.iter().copied().collect();
+
+    while let Some((last_was_toward, node)) = lifo.pop() {
+        if visited.contains(&node) {
+            continue;
+        }
+        visited.insert(node);
+
+        let adjacent = graph.get(&node).context("Node not in graph")?;
+        for edge in adjacent {
+            let in_evidence = evidence_set.contains(&node);
+            let blocked = match last_was_toward {
+                None => false,
+                Some(last_was_toward) => blocked(last_was_toward, in_evidence, edge.toward),
+            };
+
+            if !blocked {
+                if edge.end == end_node {
+                    return Ok(false);
+                }
+                lifo.push((Some(edge.toward), edge.end));
+            }
+        }
+    }
+    
+    Ok(true)
+}
+
+fn blocked(last_was_toward: bool, in_evidence: bool, next_is_toward: bool) -> bool {
+    match (last_was_toward, in_evidence, next_is_toward) {
+        (false, true, true) => true,
+        (true, true, true) => true,
+        (false, true, false) => true,
+        (true, false, false) => true,
+        _ => false,
+    }
 }
